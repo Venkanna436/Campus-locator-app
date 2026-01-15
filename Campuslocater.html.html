@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus Lost & Found App</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Arial', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); overflow: hidden; }
+        header { background: linear-gradient(45deg, #ff6b6b, #feca57); color: white; padding: 20px; text-align: center; }
+        header h1 { font-size: 2.2em; margin-bottom: 10px; }
+        .tabs { display: flex; background: #f8f9fa; }
+        .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; background: none; border: none; font-size: 1.1em; transition: all 0.3s; }
+        .tab.active { background: #007bff; color: white; }
+        .tab-content { display: none; padding: 30px; }
+        .tab-content.active { display: block; }
+        form { display: flex; flex-direction: column; gap: 15px; }
+        label { font-weight: bold; color: #333; }
+        input, textarea, select { padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; transition: border 0.3s; }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: #007bff; }
+        button { padding: 15px; background: linear-gradient(45deg, #007bff, #0056b3); color: white; border: none; border-radius: 8px; font-size: 1.1em; cursor: pointer; transition: transform 0.2s; }
+        button:hover { transform: translateY(-2px); }
+        .items-list { display: flex; flex-direction: column; gap: 15px; max-height: 400px; overflow-y: auto; }
+        .item { background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 5px solid #007bff; animation: slideIn 0.3s ease; }
+        .item.lost { border-left-color: #dc3545; }
+        .item.found { border-left-color: #28a745; }
+        .item h3 { color: #333; margin-bottom: 10px; }
+        .item p { color: #666; margin-bottom: 5px; }
+        .branch-tag { display: inline-block; background: #17a2b8; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.85em; margin-left: 10px; }
+        .match { background: #d4edda !important; border-left-color: #28a745 !important; animation: pulse 0.5s; }
+        .notifications { position: fixed; top: 20px; right: 20px; z-index: 1000; }
+        .notification { background: #28a745; color: white; padding: 15px 20px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transform: translateX(400px); transition: transform 0.3s; }
+        .notification.show { transform: translateX(0); }
+        .filter-section { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .filter-section select, .filter-section input { min-width: 150px; }
+        .suggestions { background: #e7f3ff; padding: 15px; border-radius: 8px; margin-top: 20px; }
+        .suggestion { background: white; padding: 10px; margin: 5px 0; border-radius: 5px; cursor: pointer; transition: background 0.2s; }
+        .suggestion:hover { background: #cce7ff; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏫 Campus Lost & Found</h1>
+            <p>Report, find, and match lost items on campus by branch!</p>
+        </header>
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('report')">📝 Report Item</button>
+            <button class="tab" onclick="switchTab('list')">🔍 View List</button>
+        </div>
+        <div id="report" class="tab-content active">
+            <form id="reportForm">
+                <label>Branch:</label>
+                <select id="branch" required>
+                    <option value="">Select your branch</option>
+                    <option value="CSE">💻 CSE</option>
+                    <option value="ISE">🌐 ISE</option>
+                    <option value="AI-ML">🤖 AI & ML</option>
+                    <option value="MECH">🔧 Mechanical</option>
+                    <option value="CIVIL">🏗️ Civil</option>
+                </select>
+                <label>Item Name:</label>
+                <input type="text" id="itemName" placeholder="e.g., Blue backpack" required>
+                <label>Description:</label>
+                <textarea id="description" rows="4" placeholder="Detailed description, color, location last seen..."></textarea>
+                <label>Type:</label>
+                <select id="type">
+                    <option value="lost">😟 Lost</option>
+                    <option value="found">😊 Found</option>
+                </select>
+                <label>Contact (Phone/Email):</label>
+                <input type="text" id="contact" placeholder="Your contact info" required>
+                <button type="submit">🚀 Submit Report</button>
+            </form>
+            <div id="suggestions" class="suggestions" style="display:none;">
+                <h3>Suggested Matches:</h3>
+                <div id="suggestionList"></div>
+            </div>
+        </div>
+        <div id="list" class="tab-content">
+            <div class="filter-section">
+                <select id="filterBranch" onchange="renderList()">
+                    <option value="">All Branches</option>
+                    <option value="CSE">CSE</option>
+                    <option value="ISE">ISE</option>
+                    <option value="AI-ML">AI & ML</option>
+                    <option value="MECH">Mechanical</option>
+                    <option value="CIVIL">Civil</option>
+                </select>
+                <select id="filterType" onchange="renderList()">
+                    <option value="">All Types</option>
+                    <option value="lost">Lost</option>
+                    <option value="found">Found</option>
+                </select>
+                <input type="text" id="searchInput" placeholder="Search items..." oninput="renderList()">
+            </div>
+            <div class="items-list" id="itemsList"></div>
+        </div>
+    </div>
+    <div class="notifications" id="notifications"></div>
+
+    <script>
+        let items = JSON.parse(localStorage.getItem('lostFoundItems')) || [
+            {id:1, branch:'CSE', name:'Black AirPods', desc:'Wireless earbuds in black case, lost near library', type:'lost', contact:'9876543210', date:'2026-01-10'},
+            {id:2, branch:'CSE', name:'Blue Notebook', desc:'Engineering notes, blue cover with CSE scribbles', type:'lost', contact:'email@example.com', date:'2026-01-11'},
+            {id:3, branch:'MECH', name:'Red Water Bottle', desc:'Contigo brand red bottle found at canteen', type:'found', contact:'8765432109', date:'2026-01-12'},
+            {id:4, branch:'AI-ML', name:'Graphics Card', desc:'RTX 3060 found in lab 204', type:'found', contact:'ai@example.com', date:'2026-01-13'}
+        ];
+
+        function saveItems() {
+            localStorage.setItem('lostFoundItems', JSON.stringify(items));
+        }
+
+        function showNotification(message, type = 'success') {
+            const notif = document.createElement('div');
+            notif.className = `notification show ${type}`;
+            notif.textContent = message;
+            document.getElementById('notifications').appendChild(notif);
+            setTimeout(() => notif.remove(), 4000);
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+            if (tabName === 'list') renderList();
+        }
+
+        function renderList() {
+            const filterBranch = document.getElementById('filterBranch').value;
+            const filterType = document.getElementById('filterType').value;
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            const filteredItems = items.filter(item => 
+                (!filterBranch || item.branch === filterBranch) &&
+                (!filterType || item.type === filterType) &&
+                (item.name.toLowerCase().includes(searchTerm) || 
+                 item.desc.toLowerCase().includes(searchTerm))
+            );
+            
+            const list = document.getElementById('itemsList');
+            list.innerHTML = '';
+            filteredItems.forEach(item => {
+                const div = document.createElement('div');
+                div.className = `item ${item.type}`;
+                div.innerHTML = `
+                    <h3>${item.name.toUpperCase()} <span style="color:${item.type==='lost'?'#dc3545':'#28a745'}">${item.type.toUpperCase()}</span>
+                    <span class="branch-tag">${item.branch}</span></h3>
+                    <p><strong>📝 Description:</strong> ${item.desc}</p>
+                    <p><strong>🏫 Branch:</strong> ${item.branch}</p>
+                    <p><strong>📞 Contact:</strong> ${item.contact}</p>
+                    <p><strong>📅 Date:</strong> ${item.date}</p>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function findSuggestions(name, desc, branch) {
+            return items.filter(item => 
+                (item.branch === branch || !branch) &&
+                (item.name.toLowerCase().includes(name.toLowerCase()) || 
+                 item.desc.toLowerCase().includes(desc.toLowerCase().substring(0,50)) ||
+                 name.toLowerCase().includes(item.name.toLowerCase()))
+            ).slice(0,3);
+        }
+
+        function renderSuggestions(sugs) {
+            const list = document.getElementById('suggestionList');
+            list.innerHTML = '';
+            if (sugs.length === 0) return;
+            document.getElementById('suggestions').style.display = 'block';
+            sugs.forEach(sug => {
+                const div = document.createElement('div');
+                div.className = 'suggestion';
+                div.innerHTML = `<strong>${sug.name}</strong> (${sug.type}) - ${sug.branch} - ${sug.contact}`;
+                div.onclick = () => {
+                    div.classList.add('match');
+                    showNotification('Great match! Contact them directly.');
+                };
+                list.appendChild(div);
+            });
+        }
+
+        document.getElementById('reportForm').addEventListener('submit', e => {
+            e.preventDefault();
+            const branch = document.getElementById('branch').value;
+            const name = document.getElementById('itemName').value;
+            const desc = document.getElementById('description').value;
+            const type = document.getElementById('type').value;
+            const contact = document.getElementById('contact').value;
+            const newItem = {
+                id: Date.now(),
+                branch,
+                name,
+                desc,
+                type,
+                contact,
+                date: new Date().toISOString().split('T')[0]
+            };
+            items.unshift(newItem);
+            saveItems();
+            showNotification(`Item reported in ${branch} successfully! 🎉`);
+            e.target.reset();
+            document.getElementById('suggestions').style.display = 'none';
+            
+            // Auto-suggest matches (same branch preferred)
+            const sugs = findSuggestions(name, desc, branch);
+            if (sugs.length > 0) {
+                renderSuggestions(sugs);
+                showNotification(`${sugs.length} potential matches found in ${branch}! Check suggestions.`);
+            }
+        });
+
+        // Init
+        renderList();
+    </script>
+</body>
+</html>
